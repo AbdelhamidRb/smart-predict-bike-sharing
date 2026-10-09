@@ -107,3 +107,30 @@ Une colinéarité aussi extrême (0.985) dégrade l'interprétabilité des coeff
 1. **windspeed** : Documenter ces 1 313 zéros comme une anomalie probable de mesure (hypothèse de valeurs non mesurées ou sous le seuil de sensibilité d'anémomètre codées à 0.0). La décision de traitement (imputation, modèle de régression du vent, ou maintien) est **différée au feature engineering (J4) et non tranchée ici**.
 2. **humidity** : Conserver la variable `humidity` comme feature prédictive continue continue (impact négatif modéré sur la demande).
 
+---
+
+## ADR-006 : Modélisation relationnelle SQL, contraintes d'intégrité CHECK et idempotence
+
+- **Date** : Octobre 2026
+- **Statut** : Validé (validé par `tests/test_sql_integrity.py`)
+- **Décideurs** : Équipe Projet
+
+### Contexte & Constat
+La simulation d'un flux de données de production impose de stocker les données historiques dans une base relationnelle locale (`data/database.db`) servant de source de vérité pour le futur pipeline ML.
+
+### Décision
+1. **Schéma DDL strict (`sql/schema.sql`)** :
+   - Stockage de `datetime` en `TEXT NOT NULL UNIQUE` au format normalisé ISO-8601 (`YYYY-MM-DD HH:MM:SS`).
+   - Application de contraintes `CHECK` physiques et logiques : `season BETWEEN 1 AND 4`, `weather BETWEEN 1 AND 4`, `workingday IN (0, 1)`, `holiday IN (0, 1)`, bornes thermiques plausibles, `humidity BETWEEN 0.0 AND 100.0`.
+   - Contrainte inter-colonnes `CONSTRAINT chk_total_consistency CHECK (casual + registered = count)` garantissant la cohérence mathématique des comptages à l'ingestion.
+   - Création d'un index B-tree `idx_bike_trips_datetime` sur `datetime` pour optimiser les requêtes chronologiques du pipeline ML.
+2. **Ingestion transactionnelle et idempotente (`src/ingestion_sql.py`)** :
+   - Recréation idempotente de la table via `DROP TABLE IF EXISTS`.
+   - Insertion par curseur paramétré `executemany` (exclusion de `pandas.to_sql` pour respecter rigoureusement les contraintes `CHECK`).
+   - Encapsulation dans une transaction unique avec vérification de l'assertion volumétrique (exactement 10 886 lignes) **dans la transaction avant le COMMIT** (avec `ROLLBACK` automatique si anomalie).
+3. **Statistiques météo 4** :
+   - Documenté que la classe `weather = 4` (Pluie forte/Orage) ne comporte qu'**une unique observation (N=1, count=164)**. Ce groupe est statistiquement négligeable et ne doit pas faire l'objet de conclusions ou d'assertions de représentativité sur sa moyenne.
+
+### Justification & Rationale Senior
+Ce niveau de contraintes transforme la base SQL en pare-feu contre la corruption de données (Data Quality at Ingestion), empêchant l'insertion silencieuse de lignes incohérentes ou de doublons d'horodatage.
+
