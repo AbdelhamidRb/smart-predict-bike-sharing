@@ -230,3 +230,5 @@ data/raw/*
 !data/raw/.gitkeep
 models/*.joblib
 models/*.pkl
+data/processed/*
+!data/processed/.gitkeep

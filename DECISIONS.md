@@ -209,3 +209,34 @@ Le modèle champion a été ré-entraîné sur l'intégralité du Train (8 151 l
 - Estimateur sérialisé dans `models/best_model.joblib`.
 - Garantie physique stricte : ré-inversion par `expm1` et écrêtage automatique à $\ge 0$ vélos.
 
+---
+
+## ADR-009 : Pipeline d'automatisation de production et dénormalisation pour Power BI
+
+- **Date** : Octobre 2026
+- **Statut** : Validé (validé par `tests/test_pipeline.py`)
+- **Décideurs** : Équipe Projet
+
+### Contexte
+Le passage à la restitution décisionnelle sous Power BI nécessite une table dénormalisée, optimisée pour les analyses en temps réel, évitant aux décideurs de concevoir des mesures DAX complexes pour reconstituer des résidus ou des libellés métier.
+
+### Décision
+1. **Orchestrateur autonome (`src/pipeline.py`)** :
+   - Script CLI modulaire exécutant la séquence d'inférence en production : connexion SQLite en lecture seule (`mode=ro`), feature engineering anti-fuite, chargement de `best_model.joblib`, inférence déterministe avec ré-inversion et contrainte physique ($\hat{y} \ge 0$).
+   - **Principe d'architecture** : Le pipeline **n'entraîne jamais aucun modèle**. Il est un consommateur passif de l'artefact sérialisé `best_model.joblib` garantissant une inférence reproductible et stable en production.
+2. **Structure de la table de restitution (`data/processed/powerbi_export.csv`)** :
+   - **Volumétrie** : 10 886 lignes $\times$ 26 colonnes, 0 valeur manquante.
+   - **Dénormalisation métier** : Libellés explicites pour les slicers Power BI (`season_label`: Printemps, Été, Automne, Hiver ; `weather_label`: Beau, Brouillard, etc. ; `day_name`: Monday à Sunday).
+   - **Encodage de restitution (`utf-8-sig`)** : Utilisation du standard UTF-8 avec BOM (`utf-8-sig`) pour assurer une restitution parfaite des caractères accentués français dans Power BI Desktop et Excel sous Windows.
+   - **Rôle des colonnes `casual` et `registered`** : Conservées dans l'export final **exclusivement à des fins d'analyse descriptive et métier sous Power BI** (comprendre la typologie d'usagers abonnés vs occasionnels). Elles ne participent à aucun moment au calcul de `count_predicted` (zéro fuite) et ne doivent pas être confondues avec des variables de prédiction.
+   - **Pré-calcul des métriques d'erreur** :
+     - `residual = count_real - count_predicted` (signé : permet de détecter la sous-estimation ou sur-estimation par heure/météo).
+     - `absolute_error = abs(residual)` (facilite la mesure du MAE moyen).
+     - `squared_error = residual ** 2` (facilite la mesure du RMSE : $\sqrt{\text{moyenne}}$).
+   - **Partitionnement temporel (`dataset_split`)** : Colonne contenant `'Train'` (8 151 lignes) ou `'Test'` (2 735 lignes), permettant de filtrer instantanément dans Power BI les performances sur le jeu de test neutre ou sur l'historique complet.
+   - **Règle méthodologique de reporting** : Les lignes étiquetées `Train` servent uniquement à la visualisation de la continuité historique ; **elles ne doivent en aucun cas être utilisées pour mesurer ou communiquer la performance du modèle** (seul le sous-ensemble `Test` fait foi pour évaluer l'erreur réelle en conditions réelles de production : RMSE 69.43 vélos, RMSLE 0.3304).
+
+### Justification & Rationale Senior
+Pré-calculer les résidus à la source du pipeline garantit l'alignement mathématique strict entre l'environnement Python et le reporting Power BI, tout en maximisant la fluidité des interactions et des slicers pour l'utilisateur final.
+
+
