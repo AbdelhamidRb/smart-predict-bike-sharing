@@ -1,0 +1,69 @@
+{
+  "split_protocol": {
+    "train_fit_rows": 6785,
+    "train_fit_max_date": "2012-03-19 23:00:00",
+    "val_rows": 1366,
+    "val_min_date": "2012-04-01 00:00:00",
+    "val_max_date": "2012-06-19 23:00:00",
+    "test_rows": 2735,
+    "test_min_date": "2012-07-01 00:00:00",
+    "test_max_date": "2012-12-19 23:00:00"
+  },
+  "performance_contract_baseline_1": {
+    "rmse_contract": 144.4269,
+    "rmsle_contract": 0.5304
+  },
+  "validation_selection_shootout": {
+    "RandomForest_log1p": {
+      "rmse": 101.1216,
+      "mae": 70.7221,
+      "rmsle": 0.4211,
+      "r2_real": 0.7891,
+      "target_transform": "log1p"
+    },
+    "RandomForest_sqrt": {
+      "rmse": 94.6755,
+      "mae": 66.4539,
+      "rmsle": 0.4043,
+      "r2_real": 0.8151,
+      "target_transform": "sqrt"
+    },
+    "HistGradientBoosting_log1p": {
+      "rmse": 74.9255,
+      "mae": 50.7788,
+      "rmsle": 0.3354,
+      "r2_real": 0.8842,
+      "target_transform": "log1p"
+    },
+    "HistGradientBoosting_sqrt": {
+      "rmse": 67.9809,
+      "mae": 46.2426,
+      "rmsle": 0.3395,
+      "r2_real": 0.9047,
+      "target_transform": "sqrt"
+    }
+  },
+  "champion_selected_on_validation": {
+    "name": "HistGradientBoosting_log1p",
+    "validation_metrics": {
+      "rmse": 74.9255,
+      "mae": 50.7788,
+      "rmsle": 0.3354,
+      "r2_real": 0.8842,
+      "target_transform": "log1p"
+    },
+    "test_metrics_neutral_judge": {
+      "rmse": 69.4348,
+      "mae": 44.6095,
+      "rmsle": 0.3304,
+      "r2_real": 0.8968,
+      "target_transform": "log1p"
+    },
+    "gain_vs_baseline_1_on_test": {
+      "rmse_reduction": 74.9921,
+      "rmse_reduction_pct": 51.92,
+      "rmsle_reduction": 0.2,
+      "rmsle_reduction_pct": 37.71
+    }
+  }
+}

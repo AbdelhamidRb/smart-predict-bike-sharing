@@ -172,3 +172,40 @@ Le dataset Kaggle historique s'étend du 01/01/2011 au 19/12/2012, avec une coll
 1. Comparer systématiquement la baseline heuristique à la moyenne naïve prouve mathématiquement l'apport de la variable horaire et du calendrier avant d'introduire des algorithmes sophistiqués.
 2. Les scores de Baseline 1 constituent le **benchmark contractuel minimal** : tout modèle de Machine Learning développé en J4 (Random Forest, LightGBM) devra impérativement faire mieux que **RMSLE 0.5304** et **RMSE 144.43** sur ce même jeu de test.
 
+---
+
+## ADR-008 : Feature Engineering anti-fuite, modélisation avancée et sélection du modèle champion
+
+- **Date** : Octobre 2026
+- **Statut** : Validé (sélection stricte sur validation, évaluation finale sur test neutre)
+- **Décideurs** : Équipe Projet
+
+### Contexte & Méthodologie anti-biais
+Pour garantir une modélisation sans fuite méthodologique, le jeu de test chronologique (2 735 lignes) est maintenu strictement **gelé comme juge neutre**. Aucun choix d'architecture ou de transformation cible n'est guidé par les scores de test.
+
+### Protocole de découpage temporel à 3 niveaux
+1. **Train_fit** (01/01/2011 au 19/03/2012) : 6 785 lignes (83.2% du train).
+2. **Validation interne** (01/04/2012 au 19/06/2012) : 1 366 lignes (16.8% du train), servant de juge pour le choix du modèle.
+3. **Test gelé (juge neutre)** (01/07/2012 au 19/12/2012) : 2 735 lignes, évalué une seule fois à la fin.
+
+### Shootout systématique sur le jeu de validation (4 configurations)
+| Configuration candidate | RMSE (vélos) | RMSLE | R² réel |
+| :--- | :---: | :---: | :---: |
+| `RandomForest_log1p` | 101.12 | 0.4211 | 0.7891 |
+| `RandomForest_sqrt` | 94.68 | 0.4043 | 0.8151 |
+| `HistGradientBoosting_log1p` (**Champion retenu**) | 74.93 | **0.3354** | 0.8842 |
+| `HistGradientBoosting_sqrt` | **67.98** | 0.3395 | **0.9047** |
+
+*Arbitrage* : `HistGradientBoosting_log1p` est sélectionné comme champion pour sa minimisation prioritaire du RMSLE (0.3354), tout en conservant une excellente régression sur l'échelle réelle (RMSE 74.93).
+
+### Ré-entraînement et Évaluation UNIQUE sur Test Neutre (2 735 lignes)
+Le modèle champion a été ré-entraîné sur l'intégralité du Train (8 151 lignes) puis évalué une seule fois sur le jeu de test gelé :
+- **RMSE test** : **69.4348** vélos (vs contrat Baseline 1 = 144.4269, soit **-51.92%** d'erreur).
+- **MAE test** : **44.6095** vélos (vs contrat Baseline 1 = 102.1689, soit **-56.34%** d'erreur).
+- **RMSLE test** : **0.3304** (vs contrat Baseline 1 = 0.5304, soit **-37.71%** d'erreur relative).
+- **$R^2$ réel test** : **0.8968** (~90% de la variance expliquée sur le futur).
+
+### Persistance & Inférence
+- Estimateur sérialisé dans `models/best_model.joblib`.
+- Garantie physique stricte : ré-inversion par `expm1` et écrêtage automatique à $\ge 0$ vélos.
+
