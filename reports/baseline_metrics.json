@@ -1,0 +1,30 @@
+{
+  "dataset_split": {
+    "total_rows": 10886,
+    "train_rows": 8151,
+    "train_ratio_pct": 74.88,
+    "train_max_date": "2012-06-19 23:00:00",
+    "test_rows": 2735,
+    "test_ratio_pct": 25.12,
+    "test_min_date": "2012-07-01 00:00:00"
+  },
+  "baseline_0_global_mean": {
+    "rmse": 235.9797,
+    "mae": 178.2798,
+    "rmsle": 1.3598,
+    "model": "Baseline 0 (Moyenne globale train)",
+    "global_mean": 167.7858
+  },
+  "baseline_1_hour_workingday": {
+    "rmse": 144.4269,
+    "mae": 102.1689,
+    "rmsle": 0.5304,
+    "model": "Baseline 1 (hour x workingday)"
+  },
+  "gain_brought_by_hour_workingday": {
+    "rmse_reduction": 91.5528,
+    "rmse_reduction_pct": 38.8,
+    "rmsle_reduction": 0.8294,
+    "rmsle_reduction_pct": 60.99
+  }
+}

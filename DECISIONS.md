@@ -134,3 +134,41 @@ La simulation d'un flux de données de production impose de stocker les données
 ### Justification & Rationale Senior
 Ce niveau de contraintes transforme la base SQL en pare-feu contre la corruption de données (Data Quality at Ingestion), empêchant l'insertion silencieuse de lignes incohérentes ou de doublons d'horodatage.
 
+---
+
+## ADR-007 : Découpage temporel chronologique, trou calendaire et benchmark des baselines
+
+- **Date** : Octobre 2026
+- **Statut** : Validé (validé par `tests/test_baseline.py`)
+- **Décideurs** : Équipe Projet
+
+### Contexte & Spécificité du dataset
+Le dataset Kaggle historique s'étend du 01/01/2011 au 19/12/2012, avec une collecte arrêtée au 19 de chaque mois (les jours 20 à la fin du mois constituant le test set privé Kaggle).
+
+### Décision & Chiffres mesurés
+1. **Découpage chronologique strict** :
+   - Règle de filtrage : `Train = df[datetime < '2012-07-01']` et `Test = df[datetime >= '2012-07-01']`.
+   - **Volumétrie exacte** :
+     - **Train** : **8 151 lignes** (**74.88%** du total).
+     - **Test** : **2 735 lignes** (**25.12%** du total).
+   - **Frontières et trou calendaire** :
+     - Date maximale d'entraînement : **`2012-06-19 23:00:00`**.
+     - Date minimale de test : **`2012-07-01 00:00:00`**.
+     - **Trou calendaire explicite** : Du **20/06/2012 au 30/06/2012 inclus** (11 jours sans données), inhérent à la structure Kaggle. Cet intervalle de 11 jours réduit fortement la dépendance d'autocorrélation à court terme entre la fin du train et le début du test, sans toutefois éliminer l'autocorrélation globale à plus long terme (saisonnalité, tendance annuelle).
+2. **Benchmark des Baselines (évaluées sur le jeu de test de 2 735 lignes)** :
+   - **Baseline 0 (Moyenne globale Train = 167.7858)** :
+     - RMSE : **235.9797** vélos
+     - MAE  : **178.2798** vélos
+     - RMSLE: **1.3598**
+   - **Baseline 1 (Heuristique `hour x workingday`)** :
+     - RMSE : **144.4269** vélos
+     - MAE  : **102.1689** vélos
+     - RMSLE: **0.5304**
+   - **Gain mesuré apporté par l'information temporelle** :
+     - Réduction de l'erreur absolue (RMSE) : **-91.5528 vélos (-38.80%)**.
+     - Réduction de l'erreur logarithmique (RMSLE) : **-0.8294 (-60.99%)**.
+
+### Justification & Rationale Senior
+1. Comparer systématiquement la baseline heuristique à la moyenne naïve prouve mathématiquement l'apport de la variable horaire et du calendrier avant d'introduire des algorithmes sophistiqués.
+2. Les scores de Baseline 1 constituent le **benchmark contractuel minimal** : tout modèle de Machine Learning développé en J4 (Random Forest, LightGBM) devra impérativement faire mieux que **RMSLE 0.5304** et **RMSE 144.43** sur ce même jeu de test.
+
