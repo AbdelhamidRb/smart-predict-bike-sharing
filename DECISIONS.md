@@ -239,4 +239,29 @@ Le passage à la restitution décisionnelle sous Power BI nécessite une table d
 ### Justification & Rationale Senior
 Pré-calculer les résidus à la source du pipeline garantit l'alignement mathématique strict entre l'environnement Python et le reporting Power BI, tout en maximisant la fluidité des interactions et des slicers pour l'utilisateur final.
 
+---
+
+## ADR-010 : Restitution décisionnelle sous Power BI Desktop et clôture de projet
+
+- **Date** : Octobre 2026
+- **Statut** : Validé (validé par `powerbi/smart_predict_dashboard.pbix` et `src/check_powerbi_export.py`)
+- **Décideurs** : Équipe Projet
+
+### Contexte
+Le projet Smart Predict visait à concevoir un pipeline de données complet de bout en bout (Ingestion SQL -> Machine Learning -> Restitution décisionnelle Power BI), répondant aux standards industriels d'ingénierie logicielle et de Data Science.
+
+### Décision
+1. **Architecture du Rapport Power BI (`powerbi/smart_predict_dashboard.pbix`)** :
+   - Connexion au fichier dénormalisé `data/processed/powerbi_export.csv` (10 886 lignes, 26 colonnes, encodage `utf-8-sig`).
+   - Modélisation de mesures DAX dynamiques filtrées par `dataset_split = "Test"`. L'affichage du dashboard présente les valeurs arrondies par Power BI : `RMSE Test` à 69,44 (valeur calculée : 69.4351), `MAE Test` à 44,61 (valeur calculée : 44.6095), volume réel test à 717,85K (valeur calculée : 717 854) et prédit test à 642,96K (valeur calculée : 642 958.9).
+   - Agencement de visuels décisionnels : profil pendulaire horaire par jour ouvré/non-ouvré, courbe temporelle continue, histogramme centré des résidus.
+   - Segments interactifs : bascule `Train / Test`, filtres par saison, conditions météorologiques et année.
+2. **Couverture de tests et assurance qualité** :
+   - 17 tests automatisés sous `pytest` répartis sur 4 suites (`test_sql_integrity.py`, `test_baseline.py`, `test_modeling.py`, `test_pipeline.py`) vérifiant la cohérence des étapes de la chaîne.
+
+### Synthèse factuelle
+L'ensemble des étapes définies au cadrage (ingestion SQL avec contraintes CHECK, baselines heuristiques, sélection sur validation interne, modèle champion avec RMSE 69.44 sur test neutre, pipeline d'inférence autonome et tableau de bord décisionnel) a été implémenté, documenté dans DECISIONS.md et validé par les tests automatisés.
+
+
+
 
